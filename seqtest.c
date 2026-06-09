@@ -29,6 +29,7 @@ init_seqtest(void)	  /* void */
   return;
 }
 
+/* cd "/c/Program Files (x86)/Pari64-2-17-3/" */
 /* gp2c -S seqtest.gp > seqtest.c */
 /* gcc -shared -O2 -I/usr/local/include -L/usr/local/lib -o seqtest.dll seqtest.c -lpari */
 /* gcc -shared -O2 -I/usr/local/include -o seqtest.dll seqtest.c /usr/local/bin/libpari.dll.a */
@@ -135,12 +136,14 @@ long
 is_divisible(GEN d, GEN V)
 {
   long l1;
+  if (typ(V) != t_LIST)
+    pari_err_TYPE("is_divisible",V);
   l1 = glength(V);
   {
     long j;
     for (j = 1; j <= l1; ++j)
     {
-      if (gequal0(gmod(gmax(d, gel(V, j)), gmin(d, gel(V, j)))))
+      if (gequal0(gmod(gmax(d, gel(list_data(V), j)), gmin(d, gel(list_data(V), j)))))
         return 1;
     }
   }
@@ -148,34 +151,37 @@ is_divisible(GEN d, GEN V)
 }
 
 /*
+install("init_seqtest", "v", "init_seqtest", "./seqtest.dll");
 install("is_divisible", "lGG", "is_divisible", "./seqtest.dll");
 install("backtrack", "vGGGGG", "backtrack", "./seqtest.dll");
-install("init_seqtest", "v", "init_seqtest", "./seqtest.dll");
-init_seqtest();
 current_factors = List();
-backtrack(12, divisors(12), 1, current_factors, 1);
+init_seqtest(); backtrack(12, divisors(12), 1, current_factors, 1);
 */
 void
 backtrack(GEN N, GEN D, GEN start, GEN current_factors, GEN current_prod)	  /* void */
 {
   GEN factors;
-  long l1;
-  pari_printf("#results = %ld\n", glength(results));
-  pari_printf("start = %Ps\n", start);
-  pari_printf("current_factors = %Ps\n", current_factors);
-  pari_printf("current_prod = %Ps\n", current_prod);
-  /*
-  if(current_prod == N,
-  listput(results, Vec(current_factors));
-  return()
-  );
-  */
+  long l1;	  /* lg */
+  if (typ(N) != t_INT)
+    pari_err_TYPE("backtrack",N);
+  if (!is_matvec_t(typ(D)))
+    pari_err_TYPE("backtrack",D);
+  if (typ(start) != t_INT)
+    pari_err_TYPE("backtrack",start);
+  if (typ(current_factors) != t_LIST)
+    pari_err_TYPE("backtrack",current_factors);
+  if (typ(current_prod) != t_INT)
+    pari_err_TYPE("backtrack",current_prod);
+  if (equalii(current_prod, N))
+  {
+    listput0(results, gtovec(current_factors), 0);
+    return;
+  }
   factors = listinit(gtolist(current_factors));
-  pari_printf("factors = %Ps\n", factors);
-  l1 = glength(D);
+  l1 = lg(D);
   {
     GEN i;
-    for (i = gcopy(start); gcmpgs(i, l1) <= 0; i = gaddgs(i, 1))
+    for (i = icopy(start); gcmpgs(i, l1-1) <= 0; i = gaddgs(i, 1))
     {
       GEN d;
       d = gcopy(gel(D, gtos(i)));
@@ -205,6 +211,11 @@ wrap_anon_0(void * _cargs, GEN d)
   return _res;
 }
 
+/*
+install("init_seqtest", "v", "init_seqtest", "./seqtest.dll");
+install("find_divisors", "G", "find_divisors", "./seqtest.dll");
+init_seqtest(); find_divisors(12);
+*/
 GEN
 find_divisors(GEN N)	  /* vec */
 {

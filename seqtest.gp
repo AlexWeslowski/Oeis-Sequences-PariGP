@@ -1,4 +1,5 @@
 
+\\ cd "/c/Program Files (x86)/Pari64-2-17-3/"
 \\ gp2c -S seqtest.gp > seqtest.c
 \\ gcc -shared -O2 -I/usr/local/include -L/usr/local/lib -o seqtest.dll seqtest.c -lpari
 \\ gcc -shared -O2 -I/usr/local/include -o seqtest.dll seqtest.c /usr/local/bin/libpari.dll.a
@@ -40,7 +41,7 @@ cover_or_ratio(n:int, v:vec)=
 install("is_divisible", "lGG", "is_divisible", "./seqtest.dll");
 is_divisible(3, [2, 9]);
 */
-is_divisible(d, V)=
+is_divisible(d, V:list)=
 {
 	for(j = 1, #V,
 		if(max(d, V[j]) % min(d, V[j]) == 0,
@@ -51,28 +52,19 @@ is_divisible(d, V)=
 }
 
 /*
+install("init_seqtest", "v", "init_seqtest", "./seqtest.dll");
 install("is_divisible", "lGG", "is_divisible", "./seqtest.dll");
 install("backtrack", "vGGGGG", "backtrack", "./seqtest.dll");
-install("init_seqtest", "v", "init_seqtest", "./seqtest.dll");
-init_seqtest();
 current_factors = List();
-backtrack(12, divisors(12), 1, current_factors, 1);
+init_seqtest(); backtrack(12, divisors(12), 1, current_factors, 1);
 */
-backtrack(N, D, start, current_factors, current_prod)=
+backtrack(N:int, D:vec, start:int, current_factors:list, current_prod:int)=
 {
-	print("#results = ", #results);
-	print("D = ", D);
-	print("start = ", start);
-	print("current_factors = ", current_factors);
-	print("current_prod = ", current_prod);
-	/*
 	if(current_prod == N,
 		listput(results, Vec(current_factors));
 		return()
 	);
-	*/
 	my(factors = List(current_factors));
-	print("factors = ", factors);
 	for(i = start, #D,
 		my(d = D[i]);
 		if(N % (current_prod*d) != 0, next);
@@ -85,11 +77,16 @@ backtrack(N, D, start, current_factors, current_prod)=
 
 results = List();
 
+/*
+install("init_seqtest", "v", "init_seqtest", "./seqtest.dll");
+install("find_divisors", "G", "find_divisors", "./seqtest.dll");
+init_seqtest(); d = find_divisors(12);
+*/
 find_divisors(N:int)=
 {
 	my(D = select(d -> d > 1 && d < N, divisors(N)));
 	results = List();
 	my(current_factors = List());
 	backtrack(N, D, 1, current_factors, 1);
-	Vec(results);
+	(Vec(results));
 }

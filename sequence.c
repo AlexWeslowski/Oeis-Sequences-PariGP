@@ -8,19 +8,22 @@ GP;install("cover_xor_bitvec","GG","cover_xor_bitvec","./sequence.gp.so");
 GP;install("cover_xor_ratio","GGp","cover_xor_ratio","./sequence.gp.so");
 GP;install("is_divisible","lGG","is_divisible","./sequence.gp.so");
 GP;install("is_divisible_set","G","is_divisible_set","./sequence.gp.so");
-GP;install("backtrack","vGGGGGG","backtrack","./sequence.gp.so");
+GP;install("backtrack_reference","vGGGGGG","backtrack_reference","./sequence.gp.so");
+GP;install("backtrack","vGGGGG","backtrack","./sequence.gp.so");
 GP;install("search","vGGGGGGGG","search","./sequence.gp.so");
 GP;install("product_sets","GGG","product_sets","./sequence.gp.so");
 GP;install("find_divisors","G","find_divisors","./sequence.gp.so");
-GP;install("cover","GGLp","cover","./sequence.gp.so");
-GP;install("init","","init","./sequence.gp.so");
+GP;install("cover","GGGp","cover","./sequence.gp.so");
 GP;install("save_match","vGG","save_match","./sequence.gp.so");
-GP;install("find_covers","vGGLp","find_covers","./sequence.gp.so");
+GP;install("find_covers","vGGGp","find_covers","./sequence.gp.so");
 GP;install("find_covers_sets","vGGGGLp","find_covers_sets","./sequence.gp.so");
 GP;install("format_thousands","G","format_thousands","./sequence.gp.so");
+GP;install("print_vars","vp","print_vars","./sequence.gp.so");
 GP;install("print_memory","vp","print_memory","./sequence.gp.so");
 GP;install("print_time","vGGGp","print_time","./sequence.gp.so");
-GP;install("sequence","vGGGLLp","sequence","./sequence.gp.so");
+GP;install("print_results","v","print_results","./sequence.gp.so");
+GP;install("print_summary","vG","print_summary","./sequence.gp.so");
+GP;install("sequence","vGGGGGp","sequence","./sequence.gp.so");
 */
 void init_sequence(void);
 GEN cover_or_bitvec(GEN n, GEN d);
@@ -29,25 +32,41 @@ GEN cover_xor_bitvec(GEN n, GEN d);
 GEN cover_xor_ratio(GEN n, GEN d, long prec);
 long is_divisible(GEN d, GEN V);
 GEN is_divisible_set(GEN S);
-void backtrack(GEN N, GEN D, GEN results, GEN start, GEN current_factors, GEN current_prod);
+void backtrack_reference(GEN N, GEN D, GEN results, GEN start, GEN current_factors, GEN current_prod);
+void backtrack(GEN N, GEN D, GEN start, GEN current_factors, GEN current_prod);
 void search(GEN min_n, GEN max_n, GEN n_step, GEN i, GEN j, GEN prod, GEN S, GEN results);
 GEN product_sets(GEN min_n, GEN max_n, GEN n_step);
 GEN find_divisors(GEN N);
-GEN cover(GEN n, GEN v, long mode, long prec);
-GEN init(void);
+GEN cover(GEN n, GEN v, GEN mode, long prec);
 void save_match(GEN c, GEN n);
-void find_covers(GEN N, GEN targets, long mode, long prec);
+void find_covers(GEN N, GEN targets, GEN mode, long prec);
 void find_covers_sets(GEN min_n, GEN max_n, GEN istep, GEN targets, long mode, long prec);
 GEN format_thousands(GEN n);
+void print_vars(long prec);
 void print_memory(long prec);
 void print_time(GEN imin, GEN imax, GEN ms, long prec);
-void sequence(GEN imin, GEN imax, GEN targets, long mode, long in_memory, long prec);
+void print_results(void);
+void print_summary(GEN targets);
+void sequence(GEN imin, GEN imax, GEN targets, GEN mode, GEN in_memory, long prec);
 /*End of prototype*/
 
-static GEN /*global bool USE_MAP */
+static GEN /*
+my(factors = List(current_factors));
+for(i = start, #D,
+my(d = D[i]);
+if(N % (current_prod*d), next);
+if(is_divisible(d, factors), next);
+listput(factors, d);
+\\backtrack(N, D, ~results, i+1, factors, current_prod*d);
+backtrack(N, D, i+1, factors, current_prod*d);
+listpop(factors);
+);
+*/
+/*global bool USE_MAP */
 USE_MAP;
 static GEN /*global bool USE_VEC */
 USE_VEC;
+static GEN results;
 static GEN /*global small OR_RATIO */
 OR_RATIO;
 static GEN /*global small OR_BITVEC */
@@ -58,6 +77,7 @@ static GEN /*global small XOR_BITVEC */
 XOR_BITVEC;
 static GEN /*global int icount */
 icount;
+static GEN summary;
 /*End of global vars*/
 
 void
@@ -65,15 +85,30 @@ init_sequence(void)	  /* void */
 {
   USE_MAP = pol_x(fetch_user_var("USE_MAP"));
   USE_VEC = pol_x(fetch_user_var("USE_VEC"));
+  results = pol_x(fetch_user_var("results"));
   OR_RATIO = pol_x(fetch_user_var("OR_RATIO"));
   OR_BITVEC = pol_x(fetch_user_var("OR_BITVEC"));
   XOR_RATIO = pol_x(fetch_user_var("XOR_RATIO"));
   XOR_BITVEC = pol_x(fetch_user_var("XOR_BITVEC"));
   icount = pol_x(fetch_user_var("icount"));
+  summary = pol_x(fetch_user_var("summary"));
+  /*
+  my(factors = List(current_factors));
+  for(i = start, #D,
+  my(d = D[i]);
+  if(N % (current_prod*d), next);
+  if(is_divisible(d, factors), next);
+  listput(factors, d);
+  \\backtrack(N, D, ~results, i+1, factors, current_prod*d);
+  backtrack(N, D, i+1, factors, current_prod*d);
+  listpop(factors);
+  );
+  */
   /*global bool USE_MAP */
   USE_MAP = gen_0;
   /*global bool USE_VEC */
   USE_VEC = gen_1;
+  results = mklist();
   /*global small OR_RATIO */
   OR_RATIO = gen_1;
   /*global small OR_BITVEC */
@@ -84,6 +119,7 @@ init_sequence(void)	  /* void */
   XOR_BITVEC = stoi(8);
   /*global int icount */
   icount = gen_0;
+  summary = mkmap();
   return;
 }
 
@@ -265,12 +301,16 @@ long
 is_divisible(GEN d, GEN V)
 {
   long l1;
+  if (typ(d) != t_INT)
+    pari_err_TYPE("is_divisible",d);
+  if (typ(V) != t_LIST)
+    pari_err_TYPE("is_divisible",V);
   l1 = glength(V);
   {
     long j;
     for (j = 1; j <= l1; ++j)
     {
-      if (gequal0(gmod(d, gel(V, j))) || gequal0(gmod(gel(V, j), d)))
+      if (gequal0(gmod(d, gel(list_data(V), j))) || gequal0(gmod(gel(list_data(V), j), d)))
         return 1;
     }
   }
@@ -282,6 +322,8 @@ is_divisible_set(GEN S)
 {
   GEN ok = pol_x(fetch_user_var("ok"));
   long l1;
+  if (typ(S) != t_LIST)
+    pari_err_TYPE("is_divisible_set",S);
   ok = gen_1;
   l1 = glength(S);
   {
@@ -295,7 +337,7 @@ is_divisible_set(GEN S)
         GEN j;
         for (j = stoi(l2); gcmpgs(j, l3) <= 0; j = gaddgs(j, 1))
         {
-          if (gequal0(gmod(gel(S, i), gel(S, gtos(j)))) || gequal0(gmod(gel(S, gtos(j)), gel(S, i))))
+          if (gequal0(gmod(gel(list_data(S), i), gel(list_data(S), gtos(j)))) || gequal0(gmod(gel(list_data(S), gtos(j)), gel(list_data(S), i))))
           {
             ok = gen_0;
             goto label1;
@@ -308,16 +350,33 @@ is_divisible_set(GEN S)
   return ok;
 }
 
+/*
+install("backtrack_reference", "vGGGGGG", "backtrack_reference", "./sequence.dll");
+current_factors = List();
+results = List();
+backtrack_reference(12, divisors(12), ~results, 1, current_factors, 1); backtrack_reference(168, divisors(168), ~results, 1, current_factors, 1);
+*/
 void
-backtrack(GEN N, GEN D, GEN results, GEN start, GEN current_factors, GEN current_prod)	  /* void */
+backtrack_reference(GEN N, GEN D, GEN results, GEN start, GEN current_factors, GEN current_prod)	  /* void */
 {
+  GEN factors;
   long l1;
-  current_factors = gcopy(current_factors);
   if (gequal(current_prod, N))
   {
     listput0(results, gtovec(current_factors), 0);
     return;
   }
+  /*
+  for(i = start, #D,
+  my(d = D[i]);
+  if(N % (current_prod*d), next);
+  if(is_divisible(d, current_factors), next);
+  listput(current_factors, d);
+  backtrack_reference(N, D, ~results, i+1, current_factors, current_prod*d);
+  listpop(current_factors);
+  );
+  */
+  factors = listinit(gtolist(current_factors));
   l1 = glength(D);
   {
     GEN i;
@@ -327,10 +386,57 @@ backtrack(GEN N, GEN D, GEN results, GEN start, GEN current_factors, GEN current
       d = gcopy(gel(D, gtos(i)));
       if (!gequal0(gmod(N, gmul(current_prod, d))))
         continue;
+      if (is_divisible(d, factors))
+        continue;
+      listput0(factors, d, 0);
+      backtrack_reference(N, D, results, gaddgs(i, 1), factors, gmul(current_prod, d));
+      listpop0(factors, 0);
+    }
+  }
+  return;
+}
+
+/*
+install("init_sequence", "v", "init_sequence", "./sequence.dll");
+install("backtrack", "vGGGGG", "backtrack", "./sequence.dll");
+current_factors = List();
+init_sequence(); backtrack(12, divisors(12), 1, current_factors, 1); backtrack(168, divisors(168), 1, current_factors, 1);
+*/
+/*backtrack(N, D, ~results, start, current_factors, current_prod)= */
+void
+backtrack(GEN N, GEN D, GEN start, GEN current_factors, GEN current_prod)	  /* void */
+{
+  long l1;	  /* lg */
+  if (typ(N) != t_INT)
+    pari_err_TYPE("backtrack",N);
+  if (!is_matvec_t(typ(D)))
+    pari_err_TYPE("backtrack",D);
+  if (typ(start) != t_INT)
+    pari_err_TYPE("backtrack",start);
+  if (typ(current_factors) != t_LIST)
+    pari_err_TYPE("backtrack",current_factors);
+  if (typ(current_prod) != t_INT)
+    pari_err_TYPE("backtrack",current_prod);
+  current_factors = listinit(current_factors);
+  if (equalii(current_prod, N))
+  {
+    listput0(results, gtovec(current_factors), 0);
+    return;
+  }
+  l1 = lg(D);
+  {
+    GEN i;
+    for (i = icopy(start); gcmpgs(i, l1-1) <= 0; i = gaddgs(i, 1))
+    {
+      GEN d;
+      d = gcopy(gel(D, gtos(i)));
+      if (!gequal0(gmod(N, gmul(current_prod, d))))
+        continue;
       if (is_divisible(d, current_factors))
         continue;
       listput0(current_factors, d, 0);
-      backtrack(N, D, results, gaddgs(i, 1), current_factors, gmul(current_prod, d));
+      /*backtrack(N, D, ~results, i+1, current_factors, current_prod*d); */
+      backtrack(N, D, gaddgs(i, 1), current_factors, gmul(current_prod, d));
       listpop0(current_factors, 0);
     }
   }
@@ -375,7 +481,6 @@ search(GEN min_n, GEN max_n, GEN n_step, GEN i, GEN j, GEN prod, GEN S, GEN resu
 GEN
 product_sets(GEN min_n, GEN max_n, GEN n_step)
 {
-  GEN results = pol_x(fetch_user_var("results"));
   if (typ(min_n) != t_INT)
     pari_err_TYPE("product_sets",min_n);
   if (typ(max_n) != t_INT)
@@ -417,60 +522,86 @@ wrap_anon_0(void * _cargs, GEN d)
   return _res;
 }
 
+/*
+install("init_sequence", "v", "init_sequence", "./sequence.dll");
+install("find_divisors", "G", "find_divisors", "./sequence.dll");
+D = find_divisors(168);
+*/
 GEN
 find_divisors(GEN N)	  /* vec */
 {
-  GEN D, results, current_factors;
+  GEN D, myresults, current_factors;
   if (typ(N) != t_INT)
     pari_err_TYPE("find_divisors",N);
   D = genselect(mkvec(N), wrap_anon_0, divisors(N));
-  results = mklist();
+  myresults = mklist();
+  /*results = List(); */
   current_factors = mklist();
-  backtrack(N, D, results, gen_1, current_factors, gen_1);
-  return gtovec(results);
+  backtrack_reference(N, D, myresults, gen_1, current_factors, gen_1);
+  return /*backtrack(N, D, 1, current_factors, 1); */
+  gtovec(myresults);
 }
 
+/*
+install("init_sequence", "v", "init_sequence", "./sequence.dll");
+install("cover", "GGG", "cover", "./sequence.dll");
+install("cover_or_ratio", "GG", "cover_or_ratio", "./sequence.dll");
+init_sequence(); c = cover_or_ratio(12, [3, 4]);
+init_sequence(); c = cover(12, [3, 4], 1);
+*/
 GEN
-cover(GEN n, GEN v, long mode, long prec)
+cover(GEN n, GEN v, GEN mode, long prec)
 {
   if (typ(n) != t_INT)
     pari_err_TYPE("cover",n);
   if (!is_matvec_t(typ(v)))
     pari_err_TYPE("cover",v);
-  if (gequalsg(mode, OR_RATIO))
+  if (typ(mode) != t_INT)
+    pari_err_TYPE("cover",mode);
+  /*
+  OR_RATIO = 1;
+  OR_BITVEC = 2;
+  XOR_RATIO = 4;
+  XOR_BITVEC = 8;
+  */
+  if (gequal(mode, OR_RATIO))
     return cover_or_ratio(n, v, prec);
-  if (gequalsg(mode, OR_BITVEC))
+  if (gequal(mode, OR_BITVEC))
     return cover_or_bitvec(n, v);
-  if (gequalsg(mode, XOR_RATIO))
+  if (gequal(mode, XOR_RATIO))
     return cover_xor_ratio(n, v, prec);
-  if (gequalsg(mode, XOR_BITVEC))
+  if (gequal(mode, XOR_BITVEC))
     return cover_xor_bitvec(n, v);
   return gen_0;
 }
 
-/*global GEN summary */
-GEN
-init(void)
-{
-  GEN summary = pol_x(fetch_user_var("summary"));
-  return summary = mkmap();
-}
-
+/*
+install("init_sequence", "v", "init_sequence", "./sequence.dll");
+install("save_match", "vGG", "save_match", "./sequence.dll");
+init_sequence(); save_match(1/2, 12); save_match(1/2, 168);
+*/
 void
 save_match(GEN c, GEN n)	  /* void */
 {
-  GEN tmp = gen_0, summary = pol_x(fetch_user_var("summary"));
+  GEN tmp = gen_0;
   if (!mapisdefined(summary, c, NULL))
     tmp = mklist();
   else
-    tmp = mapget(summary, c);
+    tmp = listinit(gtolist(mapget(summary, c)));
   listput0(tmp, n, 0);
   mapput(summary, c, tmp);
   return;
 }
 
+/*
+install("init_sequence", "v", "init_sequence", "./sequence.dll");
+install("find_divisors", "G", "find_divisors", "./sequence.dll");
+install("find_covers", "vGGG", "find_covers", "./sequence.dll");
+init_sequence(); d = find_divisors(12);
+init_sequence(); find_covers(12, [1/2], 1); find_covers(168, [1/2], 1);
+*/
 void
-find_covers(GEN N, GEN targets, long mode, long prec)	  /* void */
+find_covers(GEN N, GEN targets, GEN mode, long prec)	  /* void */
 {
   GEN D;
   long l1;
@@ -478,6 +609,8 @@ find_covers(GEN N, GEN targets, long mode, long prec)	  /* void */
     pari_err_TYPE("find_covers",N);
   if (!is_matvec_t(typ(targets)))
     pari_err_TYPE("find_covers",targets);
+  if (typ(mode) != t_INT)
+    pari_err_TYPE("find_covers",mode);
   if (gequal0(icount))
     pari_printf("find_covers()\n");
   icount = gaddgs(icount, 1);
@@ -500,6 +633,7 @@ find_covers(GEN N, GEN targets, long mode, long prec)	  /* void */
   return;
 }
 
+/*kill(D); */
 void
 find_covers_sets(GEN min_n, GEN max_n, GEN istep, GEN targets, long mode, long prec)	  /* void */
 {
@@ -541,7 +675,7 @@ find_covers_sets(GEN min_n, GEN max_n, GEN istep, GEN targets, long mode, long p
               for (j = 1; j <= l2; ++j)
               {
                 GEN c;
-                c = cover(i, gel(Si, j), mode, prec);
+                c = cover(i, gel(Si, j), stoi(mode), prec);
                 if (vecsearch(targets, c, NULL))
                 {
                   save_match(c, i);
@@ -568,7 +702,7 @@ find_covers_sets(GEN min_n, GEN max_n, GEN istep, GEN targets, long mode, long p
             for (j = 1; j <= l4; ++j)
             {
               GEN c;
-              c = cover(gsubgs(gadd(n, mulsi(i, istep)), 1), gel(gel(S, i), j), mode, prec);
+              c = cover(gsubgs(gadd(n, mulsi(i, istep)), 1), gel(gel(S, i), j), stoi(mode), prec);
               if (vecsearch(targets, c, NULL))
               {
                 save_match(c, gsub(gadd(n, mulsi(i, istep)), istep));
@@ -619,6 +753,25 @@ format_thousands(GEN n)
 }
 
 void
+print_vars(long prec)	  /* void */
+{
+  GEN results_mem, summary_mem;
+  results_mem = stoi(gsizebyte(results));
+  summary_mem = stoi(gsizebyte(summary));
+  if ((gcmpgs(results_mem, 10485) >= 0) || (gcmpgs(summary_mem, 10485) >= 0))
+  {
+    printf0("results\t%.2f MB\n", mkvec(gdiv(results_mem, sqrr(stor(1024, prec)))));
+    printf0("summary\t%.2f MB\n", mkvec(gdiv(summary_mem, sqrr(stor(1024, prec)))));
+  }
+  else
+  {
+    printf0("results\t%s bytes\n", mkvec(format_thousands(results_mem)));
+    printf0("summary\t%s bytes\n", mkvec(format_thousands(summary_mem)));
+  }
+  return;
+}
+
+void
 print_memory(long prec)	  /* void */
 {
   GEN stack_bytes, heap_info, stack_mb, heap_bytes, heap_mb;
@@ -653,6 +806,46 @@ print_time(GEN imin, GEN imax, GEN ms, long prec)	  /* void */
       printf0("%.2f sec\n", mkvec(sec));
     else
       printf0("%d ms\n", mkvec(ms));
+  }
+  return;
+}
+
+/*
+install("init_sequence", "v", "init_sequence", "./sequence.dll");
+install("print_results", "v", "print_results", "./sequence.dll");
+init_sequence(); print_results();
+*/
+void
+print_results(void)	  /* void */
+{
+  printf0("#results = %d\n", mkvec(stoi(glength(results))));
+  return;
+}
+
+/*
+install("init_sequence", "v", "init_sequence", "./sequence.dll");
+install("save_match", "vGG", "save_match", "./sequence.dll");
+install("print_summary", "vG", "print_summary", "./sequence.dll");
+init_sequence(); save_match(1/2, 12); print_summary([1/2]);
+*/
+void
+print_summary(GEN targets)	  /* void */
+{
+  long l1;	  /* lg */
+  GEN tmp = pol_x(fetch_user_var("tmp"));
+  if (!is_matvec_t(typ(targets)))
+    pari_err_TYPE("print_summary",targets);
+  l1 = lg(targets);
+  {
+    long i;
+    for (i = 1; i < l1; ++i)
+    {
+      if (mapisdefined(summary, gel(targets, i), NULL))
+      {
+        tmp = mapget(summary, gel(targets, i));
+        printf0("%s: %s\n", mkvec2(gel(targets, i), gtovec(tmp)));
+      }
+    }
   }
   return;
 }
@@ -709,62 +902,74 @@ I suggest to use the Windows subsystem for Linux.
 https://pari.math.u-bordeaux.fr/PDF/PARIwithWindows.pdf
 sudo apt install pari-gp
 sudo apt install pari-gp2c
+*/
+/*
+install("init_sequence", "v", "init_sequence", "./sequence.dll");
+install("print_results", "v", "print_results", "./sequence.dll");
+install("print_vars", "v", "print_vars", "./sequence.dll");
+install("find_covers", "vGGG", "find_covers", "./sequence.dll");
+install("sequence", "vGGGGG", "sequence", "./sequence.dll");
+init_sequence(); find_covers(12, [1/2], 1); find_covers(168, [1/2], 1);
+init_sequence(); sequence(2, 240, [1/2], 1, 0);
+init_sequence(); sequence(2, 7000, [1/2], 1, 0);
+init_sequence(); sequence(2, 65536, [1/2], 1, 0);
+init_sequence(); sequence(2, 131072, [1/2], 1, 0);
+init_sequence(); sequence(2, 2^20, [1/2], 1, 0);
 
+\r sequence.gp
+sequence(2, 65536, [1/2], 1, 0);
 */
 void
-sequence(GEN imin, GEN imax, GEN targets, long mode, long in_memory, long prec)	  /* void */
+sequence(GEN imin, GEN imax, GEN targets, GEN mode, GEN in_memory, long prec)	  /* void */
 {
-  GEN istep = gen_1;
-  long l1;	  /* lg */
-  GEN summary = pol_x(fetch_user_var("summary")), tmp = pol_x(fetch_user_var("tmp")), elapsed;
+  GEN istep = gen_1, elapsed;
   if (typ(imin) != t_INT)
     pari_err_TYPE("sequence",imin);
   if (typ(imax) != t_INT)
     pari_err_TYPE("sequence",imax);
   if (!is_matvec_t(typ(targets)))
     pari_err_TYPE("sequence",targets);
-  init();
+  if (typ(mode) != t_INT)
+    pari_err_TYPE("sequence",mode);
+  if (typ(in_memory) != t_INT)
+    pari_err_TYPE("sequence",in_memory);
+  default0("parisizemax", GENtostr_unquoted(powis(gen_2, 28)));
+  default0("parisize", GENtostr_unquoted(powis(gen_2, 28)));
+  OR_RATIO = gen_1;
+  OR_BITVEC = gen_2;
+  XOR_RATIO = stoi(4);
+  XOR_BITVEC = stoi(8);
+  summary = mkmap();
   printf0("sequence(%d, %d, %s, ", mkvec3(imin, imax, targets));
-  if (gequalsg(mode, OR_RATIO))
+  if (gequal(mode, OR_RATIO))
     printf0("OR_RATIO", cgetg(1, t_VEC));
-  if (gequalsg(mode, OR_BITVEC))
+  if (gequal(mode, OR_BITVEC))
     printf0("OR_BITVEC", cgetg(1, t_VEC));
-  if (gequalsg(mode, XOR_RATIO))
+  if (gequal(mode, XOR_RATIO))
     printf0("XOR_RATIO", cgetg(1, t_VEC));
-  if (gequalsg(mode, XOR_BITVEC))
+  if (gequal(mode, XOR_BITVEC))
     printf0("XOR_BITVEC", cgetg(1, t_VEC));
-  printf0(", %d);\n", mkvec(stoi(in_memory)));
-  if (in_memory && !gequal0(USE_VEC))
+  printf0(", %d);\n", mkvec(in_memory));
+  if (signe(in_memory) && !gequal0(USE_VEC))
     pari_printf("USE_VEC\n");
-  if (in_memory && !gequal0(USE_MAP))
+  if (signe(in_memory) && !gequal0(USE_MAP))
     pari_printf("USE_MAP\n");
   gettime();
   if ((lg(targets)-1) == 1)
     istep = ginv(gel(targets, 1));
-  if (in_memory)
-    find_covers_sets(imin, imax, istep, targets, mode, prec);
-  if (!(in_memory))
+  if (signe(in_memory))
+    find_covers_sets(imin, imax, istep, targets, itos(mode), prec);
+  if (!signe(in_memory))
   {
-    long l2;	  /* bool */
-    l2 = gcmpgs(istep, 0) > 0;
+    long l1;	  /* bool */
+    l1 = gcmpgs(istep, 0) > 0;
     {
       GEN i;
-      for (i = icopy(imin); l2?gcmp(i, imax) <= 0:gcmp(i, imax) >= 0; i = gadd(i, istep))
+      for (i = icopy(imin); l1?gcmp(i, imax) <= 0:gcmp(i, imax) >= 0; i = gadd(i, istep))
         find_covers(i, targets, mode, prec);
     }
   }
-  l1 = lg(targets);
-  {
-    long i;
-    for (i = 1; i < l1; ++i)
-    {
-      if (mapisdefined(summary, gel(targets, i), NULL))
-      {
-        tmp = mapget(summary, gel(targets, i));
-        printf0("%s: %s\n", mkvec2(gel(targets, i), gtovec(tmp)));
-      }
-    }
-  }
+  print_summary(targets);
   elapsed = stoi(gettime());
   print_memory(prec);
   print_time(imin, imax, elapsed, prec);

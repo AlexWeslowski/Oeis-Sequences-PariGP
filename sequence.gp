@@ -59,7 +59,7 @@ cover_xor_ratio(n:int, d:vec)=
     S;
 }
 
-is_divisible(d, V)=
+is_divisible(d:int, V:list)=
 {
 	for(j = 1, #V,
 		if(d % V[j] == 0 || V[j] % d == 0,
@@ -69,7 +69,7 @@ is_divisible(d, V)=
 	0;
 }
 
-is_divisible_set(S)=
+is_divisible_set(S:list)=
 {
 	ok = 1;
 	for(i = 1, #S,
@@ -83,7 +83,49 @@ is_divisible_set(S)=
 	ok;
 }
 
-backtrack(N, D, ~results, start, current_factors, current_prod)=
+
+/*
+install("backtrack_reference", "vGGGGGG", "backtrack_reference", "./sequence.dll");
+current_factors = List();
+results = List();
+backtrack_reference(12, divisors(12), ~results, 1, current_factors, 1); backtrack_reference(168, divisors(168), ~results, 1, current_factors, 1);
+*/
+backtrack_reference(N, D, ~results, start, current_factors, current_prod)=
+{
+	if(current_prod == N,
+		listput(results, Vec(current_factors));
+		return()
+	);
+	/*
+	for(i = start, #D,
+		my(d = D[i]);
+		if(N % (current_prod*d), next);
+		if(is_divisible(d, current_factors), next);
+		listput(current_factors, d);
+		backtrack_reference(N, D, ~results, i+1, current_factors, current_prod*d);
+		listpop(current_factors);
+	);
+	*/
+	my(factors = List(current_factors));
+	for(i = start, #D,
+		my(d = D[i]);
+		if(N % (current_prod*d), next);
+		if(is_divisible(d, factors), next);
+		listput(factors, d);
+		backtrack_reference(N, D, ~results, i+1, factors, current_prod*d);
+		listpop(factors);
+	);
+}
+
+
+/*
+install("init_sequence", "v", "init_sequence", "./sequence.dll");
+install("backtrack", "vGGGGG", "backtrack", "./sequence.dll");
+current_factors = List();
+init_sequence(); backtrack(12, divisors(12), 1, current_factors, 1); backtrack(168, divisors(168), 1, current_factors, 1);
+*/
+\\backtrack(N, D, ~results, start, current_factors, current_prod)=
+backtrack(N:int, D:vec, start:int, current_factors:list, current_prod:int)=
 {
 	if(current_prod == N,
 		listput(results, Vec(current_factors));
@@ -94,9 +136,22 @@ backtrack(N, D, ~results, start, current_factors, current_prod)=
 		if(N % (current_prod*d), next);
 		if(is_divisible(d, current_factors), next);
 		listput(current_factors, d);
-		backtrack(N, D, ~results, i+1, current_factors, current_prod*d);
+		\\backtrack(N, D, ~results, i+1, current_factors, current_prod*d);
+		backtrack(N, D, i+1, current_factors, current_prod*d);
 		listpop(current_factors);
 	);
+	/*
+	my(factors = List(current_factors));
+	for(i = start, #D,
+		my(d = D[i]);
+		if(N % (current_prod*d), next);
+		if(is_divisible(d, factors), next);
+		listput(factors, d);
+		\\backtrack(N, D, ~results, i+1, factors, current_prod*d);
+		backtrack(N, D, i+1, factors, current_prod*d);
+		listpop(factors);
+	);
+	*/
 }
 
 \\global bool USE_MAP
@@ -141,13 +196,22 @@ product_sets(min_n:int, max_n:int, n_step:int)=
 	results;
 }
 
+results = List();
+
+/*
+install("init_sequence", "v", "init_sequence", "./sequence.dll");
+install("find_divisors", "G", "find_divisors", "./sequence.dll");
+D = find_divisors(168);
+*/
 find_divisors(N:int)=
 {
 	my(D = select(d -> d > 1 && d < N, divisors(N)));
-	my(results = List());
+	my(myresults = List());
+	\\results = List();
 	my(current_factors = List());
-	backtrack(N, D, ~results, 1, current_factors, 1);
-	Vec(results);
+	backtrack_reference(N, D, ~myresults, 1, current_factors, 1);
+	\\backtrack(N, D, 1, current_factors, 1);
+	(Vec(myresults));
 }
 
 \\global small OR_RATIO
@@ -159,8 +223,21 @@ XOR_RATIO = 4;
 \\global small XOR_BITVEC
 XOR_BITVEC = 8;
 
-cover(n:int, v:vec, mode:small)=
-{
+/*
+install("init_sequence", "v", "init_sequence", "./sequence.dll");
+install("cover", "GGG", "cover", "./sequence.dll");
+install("cover_or_ratio", "GG", "cover_or_ratio", "./sequence.dll");
+init_sequence(); c = cover_or_ratio(12, [3, 4]);
+init_sequence(); c = cover(12, [3, 4], 1);
+*/
+cover(n:int, v:vec, mode:int)=
+{	
+	/*
+	OR_RATIO = 1;
+	OR_BITVEC = 2;
+	XOR_RATIO = 4;
+	XOR_BITVEC = 8;
+	*/
     if(mode==OR_RATIO, return(cover_or_ratio(n, v)));
     if(mode==OR_BITVEC, return(cover_or_bitvec(n, v)));
     if(mode==XOR_RATIO, return(cover_xor_ratio(n, v)));
@@ -169,24 +246,32 @@ cover(n:int, v:vec, mode:small)=
 
 \\global int icount
 icount = 0;
-\\global GEN summary
-init()=
-{
-  summary = Map();
-}
+summary = Map();
 
+/*
+install("init_sequence", "v", "init_sequence", "./sequence.dll");
+install("save_match", "vGG", "save_match", "./sequence.dll");
+init_sequence(); save_match(1/2, 12); save_match(1/2, 168);
+*/
 save_match(c, n)=
 {
 	my(tmp);
 	if(!mapisdefined(summary, c),
 		tmp = List(),
-		tmp = mapget(summary, c)
+		tmp = List(mapget(summary, c))
 	);
 	listput(tmp, n);
 	mapput(summary, c, tmp);
 }
 
-find_covers(N:int, targets:vec, mode:small)=
+/*
+install("init_sequence", "v", "init_sequence", "./sequence.dll");
+install("find_divisors", "G", "find_divisors", "./sequence.dll");
+install("find_covers", "vGGG", "find_covers", "./sequence.dll");
+init_sequence(); d = find_divisors(12);
+init_sequence(); find_covers(12, [1/2], 1); find_covers(168, [1/2], 1);
+*/
+find_covers(N:int, targets:vec, mode:int)=
 {
 	if(icount == 0,
 		print("find_covers()");
@@ -201,6 +286,7 @@ find_covers(N:int, targets:vec, mode:small)=
 			print("n=", N, ", cover=", c, ", factors=", D[i]);
 		);
 	);
+	\\kill(D);
 }
 
 find_covers_sets(min_n:int, max_n:int, istep:int, targets:vec, mode:small)=
@@ -255,6 +341,18 @@ format_thousands(n) = {
   concat(res);
 }
 
+print_vars() = {
+	my(results_mem = sizebyte(results));
+	my(summary_mem = sizebyte(summary));
+	if(results_mem >= 10485 || summary_mem >= 10485,
+		printf("results\t%.2f MB\n", results_mem/1024.^2);
+		printf("summary\t%.2f MB\n", summary_mem/1024.^2);
+		,
+		printf("results\t%s bytes\n", format_thousands(results_mem));
+		printf("summary\t%s bytes\n", format_thousands(summary_mem));
+	);
+}
+
 print_memory() = {
 	my(stack_bytes = getstack());
 	my(heap_info = getheap());
@@ -278,6 +376,32 @@ print_time(imin, imax, ms) = {
 	printf("%.2f sec\n", sec);
 	,
 	printf("%d ms\n", ms);
+	);
+}
+
+/*
+install("init_sequence", "v", "init_sequence", "./sequence.dll");
+install("print_results", "v", "print_results", "./sequence.dll");
+init_sequence(); print_results();
+*/
+print_results()=
+{
+	printf("#results = %d\n", #results);
+}
+
+/*
+install("init_sequence", "v", "init_sequence", "./sequence.dll");
+install("save_match", "vGG", "save_match", "./sequence.dll");
+install("print_summary", "vG", "print_summary", "./sequence.dll");
+init_sequence(); save_match(1/2, 12); print_summary([1/2]);
+*/
+print_summary(targets:vec)=
+{
+	for(i = 1, #targets,
+		if(mapisdefined(summary, targets[i]),
+			tmp = mapget(summary, targets[i]);
+			printf("%s: %s\n", targets[i], Vec(tmp));
+		);
 	);
 }
 
@@ -333,11 +457,32 @@ I suggest to use the Windows subsystem for Linux.
 https://pari.math.u-bordeaux.fr/PDF/PARIwithWindows.pdf
 sudo apt install pari-gp
 sudo apt install pari-gp2c
-
 */
-sequence(imin:int, imax:int, targets:vec, mode:small, in_memory:bool)=
+/*
+install("init_sequence", "v", "init_sequence", "./sequence.dll");
+install("print_results", "v", "print_results", "./sequence.dll");
+install("print_vars", "v", "print_vars", "./sequence.dll");
+install("find_covers", "vGGG", "find_covers", "./sequence.dll");
+install("sequence", "vGGGGG", "sequence", "./sequence.dll");
+init_sequence(); find_covers(12, [1/2], 1); find_covers(168, [1/2], 1);
+init_sequence(); sequence(2, 240, [1/2], 1, 0);
+init_sequence(); sequence(2, 7000, [1/2], 1, 0);
+init_sequence(); sequence(2, 65536, [1/2], 1, 0);
+init_sequence(); sequence(2, 131072, [1/2], 1, 0);
+init_sequence(); sequence(2, 2^20, [1/2], 1, 0);
+
+\r sequence.gp
+sequence(2, 65536, [1/2], 1, 0);
+*/
+sequence(imin:int, imax:int, targets:vec, mode:int, in_memory:int)=
 {
-	init();
+	default(parisizemax, 2^28);
+	default(parisize, 2^28);
+	OR_RATIO = 1;
+	OR_BITVEC = 2;
+	XOR_RATIO = 4;
+	XOR_BITVEC = 8;
+	summary = Map();
 	printf("sequence(%d, %d, %s, ", imin, imax, targets);
     if(mode==OR_RATIO, printf("OR_RATIO"));
     if(mode==OR_BITVEC, printf("OR_BITVEC"));
@@ -359,12 +504,7 @@ sequence(imin:int, imax:int, targets:vec, mode:small, in_memory:bool)=
 		forstep(i=imin, imax, istep,
 			find_covers(i, targets, mode));
 	);
-	for(i = 1, #targets,
-		if(mapisdefined(summary, targets[i]),
-			tmp = mapget(summary, targets[i]);
-			printf("%s: %s\n", targets[i], Vec(tmp));
-		);
-	);
+	print_summary(targets);
 	my(elapsed = gettime());
 	print_memory();
 	print_time(imin, imax, elapsed);
