@@ -24,6 +24,7 @@ cover_or_ratio(n:int, v:vec)=
 		);
 		c += (-1)^(bits+1)/L;
 	);
+	\\print("cover_or_ratio(", n, ", ", v, ") = ", c);
 	c;
 }
 
@@ -321,11 +322,11 @@ make install
 
 default(parisizemax, 2^28);
 default(parisize, 2^28);
-sequence(2, 65536, [1/2], 1, 0);
+sequence(2, 1048576, [1/2], 1, 0);
 
 default(parisizemax, 2^30);
 default(parisize, 2^28);
-sequence(2, 65536, [1/2], 1, 1);
+sequence(2, 1048576, [1/2], 1, 1);
 
 */
 sequence(imin:int, imax:int, targets:vec, mode:int, in_memory:int)=
@@ -335,6 +336,13 @@ sequence(imin:int, imax:int, targets:vec, mode:int, in_memory:int)=
 	XOR_RATIO = 4;
 	XOR_BITVEC = 8;
 	summary = Map();
+	my(istep = 1);
+	if(#targets == 1,
+		istep = 1/targets[1];
+		while(imin % istep, 
+			imin += 1
+		);
+	);
 	printf("sequence(%d, %d, %s, ", imin, imax, targets);
     if(mode==OR_RATIO, printf("OR_RATIO"));
     if(mode==OR_BITVEC, printf("OR_BITVEC"));
@@ -343,10 +351,6 @@ sequence(imin:int, imax:int, targets:vec, mode:int, in_memory:int)=
 	printf(", %d);\n", in_memory);
 	gettime();
 	
-	my(istep = 1);
-	if(#targets == 1,
-		istep = 1/targets[1]
-	);
 	if(in_memory,
 		find_covers_sets(imin, imax, istep, targets, mode);
 	);
