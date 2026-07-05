@@ -24,7 +24,6 @@ cover_or_ratio(n:int, v:vec)=
 		);
 		c += (-1)^(bits+1)/L;
 	);
-	\\print("cover_or_ratio(", n, ", ", v, ") = ", c);
 	c;
 }
 
@@ -187,34 +186,55 @@ save_match(c, n)=
 	mapput(summary, c, tmp);
 }
 
-find_covers(N:int, targets:vec, mode:int)=
+target_search(targets:vec, search:rational)=
+{
+	my(idx = 0);
+	for(i = 1, #targets, 
+		\\if(bestappr(targets[i]) == bestappr(search),
+		if(targets[i] == search,
+			idx = i;
+		);
+	);
+	idx
+}
+
+find_covers(N:int, targets:vec, invtargets:vec, mode:int)=
 {
 	if(icount == 0,
 		print("find_covers()");
 	);
 	icount++;
 	my(D = find_divisors(N));
+	if(#D == 0 && vecsearch(invtargets, N),
+		D = [[N]];
+	);
 	for(i = 1, #D,
 		my(c = cover(N, D[i], mode));
-		if(vecsearch(targets, c),
+		if(target_search(targets, c),
 			save_match(c, N);
 			print(c, "\t", format_thousands(N), "\t", D[i]);
 		);
 	);
 }
 
-find_covers_sets(min_n:int, max_n:int, istep:int, targets:vec, mode:small)=
+find_covers_sets(min_n:int, max_n:int, istep:int, targets:vec, invtargets:vec, mode:small)=
 {
 	print("find_covers_sets()");
 	my(n = min_n);
 	\\8192 16384 32768 65536
 	my(istepsize = 16384);
+	if(n + istepsize > max_n,
+		istepsize = max_n - n;
+	);
 	while(n < max_n,
 		my(S = product_sets(n, n + istepsize, istep));
 		for(i = 1, #S,
+			if(#S[i] == 0 && vecsearch(invtargets, n + i * istep - istep),
+				S[i] = [[n + i * istep - istep]];
+			);
 			for(j = 1, #S[i],
 				my(c = cover(n + i * istep - 1, S[i][j], mode));
-				if(vecsearch(targets, c),
+				if(target_search(targets, c),
 					save_match(c, n + i * istep - istep);
 					print(c, "\t", format_thousands(n + i * istep - istep), "\t", S[i][j]);
 				);
@@ -343,7 +363,8 @@ sequence(imin:int, imax:int, targets:vec, mode:int, in_memory:int)=
 			imin += 1
 		);
 	);
-	printf("sequence(%d, %d, %s, ", imin, imax, targets);
+	my(invtargets = [1/target | target <- targets]);
+	printf("sequence(imin=%d, imax=%d, istep=%d, targets=%s, ", imin, imax, istep, targets);
     if(mode==OR_RATIO, printf("OR_RATIO"));
     if(mode==OR_BITVEC, printf("OR_BITVEC"));
     if(mode==XOR_RATIO, printf("XOR_RATIO"));
@@ -352,11 +373,11 @@ sequence(imin:int, imax:int, targets:vec, mode:int, in_memory:int)=
 	gettime();
 	
 	if(in_memory,
-		find_covers_sets(imin, imax, istep, targets, mode);
+		find_covers_sets(imin, imax, istep, targets, invtargets, mode);
 	);
 	if(!in_memory, 
 		forstep(i=imin, imax, istep,
-			find_covers(i, targets, mode));
+			find_covers(i, targets, invtargets, mode));
 	);
 	print_summary(targets);
 	my(elapsed = gettime());
